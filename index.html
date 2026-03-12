@@ -191,15 +191,22 @@
         function startEditing(id) {
             editingId = id;
             render();
+            // 深度修复：确保在不同网页环境下光标都在最后且不全选
             setTimeout(() => {
                 const input = document.querySelector(`input[data-edit-id="${id}"]`);
                 if (input) {
-                    input.focus();
                     const val = input.value;
+                    input.focus();
+                    
+                    // 强制清空再赋值（触发大多数浏览器的光标定位逻辑）
                     input.value = '';
                     input.value = val;
+                    
+                    // 显式设置光标位置到最后一位，避免全选
+                    const len = val.length;
+                    input.setSelectionRange(len, len);
                 }
-            }, 50);
+            }, 60); // 稍微增加延迟以确保 DOM 渲染完成
         }
 
         function finishEditing(id, newText) {
@@ -234,12 +241,11 @@
             saveAndRender();
         }
 
-        // 核心修复：清空记录函数
         function clearCompleted() {
             if (completed.length === 0) return;
             if (confirm('确定要清空所有已完成的任务吗？')) { 
-                completed = []; // 1. 清空数据
-                saveAndRender(); // 2. 保存到 localStorage 并触发 render()
+                completed = [];
+                saveAndRender();
             }
         }
 
@@ -253,7 +259,6 @@
             const lists = { high: 'highList', medium: 'mediumList', low: 'lowList' };
             const counts = { high: 'highCount', medium: 'mediumCount', low: 'lowCount' };
             
-            // 清空当前显示的列表
             Object.values(lists).forEach(id => document.getElementById(id).innerHTML = "");
             
             const stats = { high: 0, medium: 0, low: 0 };
@@ -264,13 +269,11 @@
                 }
             });
             
-            // 更新计数器
             Object.keys(stats).forEach(k => {
                 const countEl = document.getElementById(counts[k]);
                 if (countEl) countEl.innerText = stats[k];
             });
 
-            // 渲染已完成列表
             const compList = document.getElementById('completedList');
             compList.innerHTML = "";
             completed.slice(0, 50).forEach(todo => {
@@ -301,7 +304,6 @@
 
         document.getElementById('todoInput').addEventListener('keypress', e => e.key === 'Enter' && addTodo());
         
-        // 初始渲染
         window.onload = render;
     </script>
 </body>
