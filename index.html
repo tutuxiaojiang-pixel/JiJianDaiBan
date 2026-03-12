@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>极简待办与专注中心 - 纯净版</title>
+    <!-- 即使 CDN 失败，我们也内置了核心样式 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root {
+            --primary: #6366f1;
+            --high: #ef4444;
+            --medium: #f59e0b;
+            --low: #10b981;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f8fafc;
+            margin: 0;
+            color: #1e293b;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .max-w-4xl { max-width: 56rem; margin-left: auto; margin-right: auto; padding: 1rem; }
+        
+        .glass-card {
+            background: #ffffff;
+            border-radius: 1rem;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .priority-tab {
+            padding: 10px 12px;
+            font-size: 14px;
+            border-radius: 10px;
+            border: 1px solid transparent;
+            transition: all 0.2s;
+            cursor: pointer;
+            flex: 1;
+            text-align: center;
+        }
+        .active-high { background-color: #fee2e2; color: #b91c1c; border-color: #fecaca; }
+        .active-medium { background-color: #fef3c7; color: #b45309; border-color: #fde68a; }
+        .active-low { background-color: #d1fae5; color: #047857; border-color: #a7f3d0; }
+
+        .priority-box {
+            border-radius: 1rem;
+            padding: 1rem;
+            border: 2px solid transparent;
+            margin-bottom: 1rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .selected-high { border-color: #fecaca; background-color: #fff1f2; }
+        .selected-medium { border-color: #fde68a; background-color: #fffbeb; }
+        .selected-low { border-color: #a7f3d0; background-color: #f0fdf4; }
+
+        .todo-item {
+            display: flex;
+            align-items: flex-start;
+            background: white;
+            padding: 0.75rem;
+            border-radius: 0.75rem;
+            margin-bottom: 0.75rem;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            animation: fadeIn 0.3s ease-out;
+        }
+        .priority-high { border-left: 4px solid var(--high); }
+        .priority-medium { border-left: 4px solid var(--medium); }
+        .priority-low { border-left: 4px solid var(--low); }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen">
+    <div class="max-w-4xl">
+        <!-- Header -->
+        <header class="py-8 text-center">
+            <h1 class="text-3xl font-bold text-slate-800 m-0">不再焦虑的清单 ✨</h1>
+            <p class="text-slate-500 mt-2 text-sm">点击看板切换分类 · 勾选自动归档</p>
+        </header>
+
+        <!-- Input Section -->
+        <div class="glass-card">
+            <div class="space-y-4">
+                <div class="flex items-center gap-2">
+                    <span class="text-xs font-bold text-slate-400 uppercase">准备添加至：</span>
+                    <div class="flex bg-slate-100 p-1 rounded-xl flex-1">
+                        <div onclick="setPriority('high')" id="tab-high" class="priority-tab">🔥 核心</div>
+                        <div onclick="setPriority('medium')" id="tab-medium" class="priority-tab">⏳ 持续</div>
+                        <div onclick="setPriority('low')" id="tab-low" class="priority-tab active-low">🌱 轻松</div>
+                    </div>
+                </div>
+
+                <div class="flex flex-col md:flex-row gap-2">
+                    <input id="todoInput" type="text" placeholder="输入任务，按回车添加..." 
+                        class="flex-1 px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-base">
+                    <button onclick="addTodo()" class="bg-indigo-600 text-white px-8 py-3 rounded-xl font-bold active:bg-indigo-700 shadow-md">
+                        添加任务
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Matrix -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div id="box-high" onclick="setPriority('high')" class="priority-box bg-red-50 border-red-50">
+                <h3 class="font-bold text-red-700 mb-3 flex justify-between text-sm">
+                    <span>🔥 核心重点</span>
+                    <span id="highCount" class="bg-red-200 px-2 rounded-full">0</span>
+                </h3>
+                <div id="highList" class="space-y-2" onclick="event.stopPropagation()"></div>
+            </div>
+            
+            <div id="box-medium" onclick="setPriority('medium')" class="priority-box bg-amber-50 border-amber-50">
+                <h3 class="font-bold text-amber-700 mb-3 flex justify-between text-sm">
+                    <span>⏳ 持续推进</span>
+                    <span id="mediumCount" class="bg-amber-200 px-2 rounded-full">0</span>
+                </h3>
+                <div id="mediumList" class="space-y-2" onclick="event.stopPropagation()"></div>
+            </div>
+            
+            <div id="box-low" onclick="setPriority('low')" class="priority-box bg-emerald-50 border-emerald-50 selected-low">
+                <h3 class="font-bold text-emerald-700 mb-3 flex justify-between text-sm">
+                    <span>🌱 轻松杂事</span>
+                    <span id="lowCount" class="bg-emerald-200 px-2 rounded-full">0</span>
+                </h3>
+                <div id="lowList" class="space-y-2" onclick="event.stopPropagation()"></div>
+            </div>
+        </div>
+
+        <!-- Completed -->
+        <div class="mt-12 pt-8 border-t border-slate-200">
+            <div class="flex justify-between items-center mb-4">
+                <h4 class="text-slate-400 font-bold text-xs uppercase tracking-widest flex items-center gap-1">
+                    ✅ 已完成任务
+                </h4>
+                <button onclick="clearCompleted()" class="text-slate-300 text-xs hover:text-red-400 transition-colors">清空记录</button>
+            </div>
+            <div id="completedList" class="grid grid-cols-1 md:grid-cols-2 gap-3 opacity-60"></div>
+        </div>
+    </div>
+
+    <script>
+        let todos = JSON.parse(localStorage.getItem('pure_todos_v1')) || [];
+        let completed = JSON.parse(localStorage.getItem('pure_completed_v1')) || [];
+        let currentPriority = 'low';
+
+        // 切换当前准备添加的任务类型
+        function setPriority(p) {
+            currentPriority = p;
+            ['high', 'medium', 'low'].forEach(t => {
+                const tab = document.getElementById(`tab-${t}`);
+                tab.className = 'priority-tab';
+                if (t === p) tab.classList.add(`active-${p}`);
+
+                const box = document.getElementById(`box-${t}`);
+                box.className = `priority-box bg-${t === 'high' ? 'red' : t === 'medium' ? 'amber' : 'emerald'}-50`;
+                if (t === p) box.classList.add(`selected-${p}`);
+            });
+            document.getElementById('todoInput').focus();
+        }
+
+        // 添加任务
+        function addTodo() {
+            const input = document.getElementById('todoInput');
+            const text = input.value.trim();
+            if (!text) return;
+            todos.push({ id: Date.now(), text: text, priority: currentPriority });
+            input.value = "";
+            saveAndRender();
+        }
+
+        // 勾选状态切换（双向自动归档）
+        function handleToggle(id, isDone) {
+            if (!isDone) {
+                // 从待办移动到完成
+                const i = todos.findIndex(t => t.id === id);
+                if (i > -1) { 
+                    completed.unshift({ ...todos[i], done: true }); 
+                    todos.splice(i, 1); 
+                }
+            } else {
+                // 从完成移动回待办
+                const i = completed.findIndex(t => t.id === id);
+                if (i > -1) { 
+                    todos.push({ ...completed[i], done: false }); 
+                    completed.splice(i, 1); 
+                }
+            }
+            saveAndRender();
+        }
+
+        // 删除任务
+        function deleteTodo(id, isDone) {
+            if (isDone) completed = completed.filter(t => t.id !== id);
+            else todos = todos.filter(t => t.id !== id);
+            saveAndRender();
+        }
+
+        // 清空已完成
+        function clearCompleted() {
+            if (confirm('确定要清空所有已完成记录吗？')) {
+                completed = [];
+                saveAndRender();
+            }
+        }
+
+        function saveAndRender() {
+            localStorage.setItem('pure_todos_v1', JSON.stringify(todos));
+            localStorage.setItem('pure_completed_v1', JSON.stringify(completed));
+            render();
+        }
+
+        function render() {
+            const lists = { high: 'highList', medium: 'mediumList', low: 'lowList' };
+            const counts = { high: 'highCount', medium: 'mediumCount', low: 'lowCount' };
+            
+            // 重置列表
+            Object.values(lists).forEach(id => document.getElementById(id).innerHTML = "");
+            
+            const stats = { high: 0, medium: 0, low: 0 };
+            todos.forEach(todo => {
+                if (lists[todo.priority]) {
+                    stats[todo.priority]++;
+                    document.getElementById(lists[todo.priority]).appendChild(createItem(todo, false));
+                }
+            });
+            
+            // 更新计数器
+            Object.keys(stats).forEach(k => document.getElementById(counts[k]).innerText = stats[k]);
+
+            // 渲染已完成
+            const compList = document.getElementById('completedList');
+            compList.innerHTML = "";
+            completed.slice(0, 50).forEach(todo => compList.appendChild(createItem(todo, true)));
+        }
+
+        function createItem(todo, isDone) {
+            const div = document.createElement('div');
+            div.className = `todo-item priority-${todo.priority}`;
+            div.innerHTML = `
+                <input type="checkbox" ${isDone ? 'checked' : ''} onchange="handleToggle(${todo.id}, ${isDone})" 
+                    style="width:22px; height:22px; margin-right:12px; cursor:pointer; flex-shrink:0;">
+                <span style="flex:1; font-size:16px; line-height:1.4; ${isDone ? 'text-decoration:line-through; color:#94a3b8' : ''}">${todo.text}</span>
+                <button onclick="deleteTodo(${todo.id}, ${isDone})" style="background:none; border:none; color:#cbd5e1; cursor:pointer; padding:4px; font-size:18px; margin-left:8px;">✕</button>
+            `;
+            return div;
+        }
+
+        document.getElementById('todoInput').addEventListener('keypress', e => e.key === 'Enter' && addTodo());
+        
+        // 初始渲染
+        render();
+    </script>
+</body>
+</html>
